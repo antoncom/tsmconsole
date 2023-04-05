@@ -1,11 +1,9 @@
-local bit = require "bit"
 local util = require "luci.util"
 local ubus = require "ubus"
 local uloop = require "uloop"
 local sys  = require "luci.sys"
 
 
-local M = require 'posix.termio'
 local F = require 'posix.fcntl'
 local U = require 'posix.unistd'
 
