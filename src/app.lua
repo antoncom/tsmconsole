@@ -54,6 +54,24 @@ function tsmconsole:poll()
 					end
                 end
             end
+
+			if message_from_browser and (not err) then
+				local ubus_response = {}
+				local web_browser_data = luci.jsonc.parse(message_from_browser)
+				local proto = web_browser_data and web_browser_data["proto"] or nil
+				if proto and proto == "ubus" then
+					local uuid = web_browser_data["uuid"]
+					local obj = web_browser_data["obj"]
+					local method = web_browser_data["method"]
+					local params = web_browser_data["params"]
+					ubus_response = util.ubus(obj, method, params) or {}
+					ubus_response["uuid"] = uuid
+
+					local shell_command = string.format("echo '%s' > %s", util.serialize_json(ubus_response), tsmconsole.pipein_file)
+					sys.process.exec({"/bin/sh", "-c", shell_command }, true, true, false)
+				end
+			end
+
         end, uloop.ULOOP_READ)
     end
 end
@@ -80,18 +98,23 @@ function tsmconsole:make_ubus()
 		}
 	}
 	tsmconsole.conn:add( ubus_methods )
+
 end
 
 
 function tsmconsole:subscribe_ubus()
 	local sub = {
 		notify = function(msg, name)
-			local shell_command = string.format("echo '%s' > %s", util.serialize_json({ AT_answer = msg["answer"]}), tsmconsole.pipein_file)
+			local shell_command = string.format("echo '%s' > %s", util.serialize_json({
+				module = "tsmconsole",
+				AT_answer = msg["answer"]
+			}), tsmconsole.pipein_file)
 			sys.process.exec({"/bin/sh", "-c", shell_command }, true, true, false)
 		end
 	}
     tsmconsole.conn:subscribe("tsmodem.driver", sub)
 end
+
 
 tsmconsole:init()
 uloop.init()
